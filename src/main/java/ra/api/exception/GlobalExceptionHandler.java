@@ -34,4 +34,12 @@ public class GlobalExceptionHandler {
                 .build();
         return new ResponseEntity<>(dataError, HttpStatus.NOT_FOUND);
     }
+    @ExceptionHandler(ResourceExistException.class)
+    public ResponseEntity<DataError> handleResourceExistException(ResourceExistException ex) {
+        DataError dataError = DataError.builder()
+                .code(409)
+                .message(ex.getMessage())
+                .build();
+        return new ResponseEntity<>(dataError, HttpStatus.CONFLICT);
+    }
 }

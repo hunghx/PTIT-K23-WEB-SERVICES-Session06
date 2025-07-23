@@ -13,4 +13,5 @@ public interface IStudentRepository extends JpaRepository<Student,Integer> {
     @Query("select new ra.api.model.dto.response.StudentDto(s.id, s.name, s.email, s.dob, s.address, s.phoneNumber) " +
            "from Student s")
     List<StudentDto> findStudentForManager();
+    boolean existsByEmail(String email);
 }

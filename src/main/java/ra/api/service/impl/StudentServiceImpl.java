@@ -3,12 +3,18 @@ package ra.api.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ra.api.exception.NotFoundException;
+import ra.api.exception.ResourceExistException;
+import ra.api.model.dto.request.EnrollmentDto;
 import ra.api.model.dto.request.StudentAddDto;
 import ra.api.model.dto.request.StudentUpdateDto;
 import ra.api.model.dto.response.DataResponse;
 import ra.api.model.dto.response.StudentDto;
+import ra.api.model.entity.Enrollment;
 import ra.api.model.entity.Student;
+import ra.api.model.entity.Subject;
+import ra.api.repository.IEnrollmentRepository;
 import ra.api.repository.IStudentRepository;
+import ra.api.repository.ISubjectRepository;
 import ra.api.service.IStudentService;
 
 import java.time.LocalDateTime;
@@ -18,6 +24,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StudentServiceImpl  implements IStudentService {
     private final IStudentRepository studentRepository;
+    private final ISubjectRepository subjectRepository;
+    private final IEnrollmentRepository enrollmentRepository;
     @Override
     public DataResponse<List<Student>> findAll() {
         DataResponse<List<Student>> dataResponse = DataResponse.<List<Student>>builder()
@@ -33,7 +41,10 @@ public class StudentServiceImpl  implements IStudentService {
     }
 
     @Override
-    public DataResponse<Student> addStudent(StudentAddDto request) {
+    public DataResponse<Student> addStudent(StudentAddDto request) throws ResourceExistException {
+        if (studentRepository.existsByEmail(request.getEmail())){
+            throw new ResourceExistException("Email " + request.getEmail() + " already exists.");
+        }
         Student student = new Student();
         student.setName(request.getName());
         student.setEmail(request.getEmail());
@@ -48,9 +59,13 @@ public class StudentServiceImpl  implements IStudentService {
     }
 
     @Override
-    public DataResponse<Student> updateStudent(Integer id, StudentUpdateDto request) throws NotFoundException {
+    public DataResponse<Student> updateStudent(Integer id, StudentUpdateDto request) throws NotFoundException, ResourceExistException {
         if (!studentRepository.existsById(id)){
             throw new NotFoundException("Student with id " + id + " does not exist.");
+        }
+        String oldEmail = studentRepository.findById(id).get().getEmail();
+        if (!request.getEmail().equals(oldEmail) && studentRepository.existsByEmail(request.getEmail())) {
+            throw new ResourceExistException("Email " + request.getEmail() + " already exists.");
         }
         Student student = studentRepository.findById(id).get();
         student.setName(request.getName());
@@ -71,5 +86,37 @@ public class StudentServiceImpl  implements IStudentService {
             throw new NotFoundException("Student with id " + id + " does not exist.");
         }
         studentRepository.deleteById(id);
+    }
+
+    @Override
+    public Student findById(Integer id) throws NotFoundException {
+        return studentRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Student with id " + id + " not found."));
+    }
+
+    @Override
+    public DataResponse<Enrollment> registerSubject(EnrollmentDto request) throws NotFoundException {
+        Student student = studentRepository.findById(request.getStudentId())
+                .orElseThrow(() -> new NotFoundException("Student with id " + request.getStudentId() + " not found."));
+        Subject subject = subjectRepository.findById(request.getSubjectId())
+                .orElseThrow(() -> new NotFoundException("Subject with id " + request.getSubjectId() + " not found."));
+        Enrollment enrollment = new Enrollment();
+        enrollment.setStudent(student);
+        enrollment.setSubject(subject);
+        return DataResponse.<Enrollment>builder()
+                .key("enrollment")
+                .data(enrollmentRepository.save(enrollment))
+                .build();
+    }
+
+    @Override
+    public DataResponse<List<Enrollment>> getEnrollmentsByStudentId(Integer id) throws NotFoundException {
+        if (!studentRepository.existsById(id)) {
+            throw new NotFoundException("Student with id " + id + " does not exist.");
+        }
+        return DataResponse.<List<Enrollment>>builder()
+                .key("enrollments")
+                .data(enrollmentRepository.findByStudentId(id))
+                .build();
     }
 }

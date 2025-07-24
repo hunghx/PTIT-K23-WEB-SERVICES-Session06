@@ -1,6 +1,7 @@
 package ra.api.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ra.api.exception.NotFoundException;
 import ra.api.exception.ResourceExistException;
@@ -19,9 +20,11 @@ import ra.api.service.IStudentService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.logging.Logger;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StudentServiceImpl  implements IStudentService {
     private final IStudentRepository studentRepository;
     private final ISubjectRepository subjectRepository;
@@ -61,6 +64,7 @@ public class StudentServiceImpl  implements IStudentService {
     @Override
     public DataResponse<Student> updateStudent(Integer id, StudentUpdateDto request) throws NotFoundException, ResourceExistException {
         if (!studentRepository.existsById(id)){
+            log.warn("Student with id {} does not exist.", id);
             throw new NotFoundException("Student with id " + id + " does not exist.");
         }
         String oldEmail = studentRepository.findById(id).get().getEmail();
@@ -97,6 +101,7 @@ public class StudentServiceImpl  implements IStudentService {
     @Override
     public DataResponse<Enrollment> registerSubject(EnrollmentDto request) throws NotFoundException {
         Student student = studentRepository.findById(request.getStudentId())
+
                 .orElseThrow(() -> new NotFoundException("Student with id " + request.getStudentId() + " not found."));
         Subject subject = subjectRepository.findById(request.getSubjectId())
                 .orElseThrow(() -> new NotFoundException("Subject with id " + request.getSubjectId() + " not found."));
